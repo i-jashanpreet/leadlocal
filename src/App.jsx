@@ -7,19 +7,37 @@ import {
   XCircle, 
   MapPin, 
   ArrowRight, 
-  Mail, 
   Phone, 
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Star,
+  AlertTriangle,
+  Mail,
+  ShieldAlert
 } from 'lucide-react'
 
 function App() {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchLocation, setSearchLocation] = useState('Austin, TX')
+  const [city, setCity] = useState('Austin, TX')
+  const [category, setCategory] = useState('Dentist')
   const [isLoading, setIsLoading] = useState(false)
+  const [leads, setLeads] = useState([])
   const [searched, setSearched] = useState(false)
+  const [error, setError] = useState(null)
   const [backendStatus, setBackendStatus] = useState('checking') // 'checking', 'connected', 'offline'
   
+  // Categories for the dropdown list
+  const categories = [
+    { value: 'Dentist', label: 'Dentists' },
+    { value: 'Restaurant', label: 'Restaurants & Cafes' },
+    { value: 'Plumber', label: 'Plumbers' },
+    { value: 'Gym', label: 'Gyms & Fitness' },
+    { value: 'Auto Repair', label: 'Auto Repair Shops' },
+    { value: 'Landscaping', label: 'Landscaping Services' },
+    { value: 'Electrician', label: 'Electricians' },
+    { value: 'Bakery', label: 'Bakeries' },
+    { value: 'Salon', label: 'Salons & Spas' }
+  ]
+
   // Check backend health status on mount
   useEffect(() => {
     const checkBackend = async () => {
@@ -46,51 +64,40 @@ function App() {
     return () => clearInterval(interval)
   }, [])
 
-  // Mock search execution
-  const handleSearch = (e) => {
+  // Call search API
+  const handleSearch = async (e) => {
     e.preventDefault()
-    if (!searchLocation.trim()) return
+    if (!city.trim() || !category.trim()) return
     
     setIsLoading(true)
-    setTimeout(() => {
+    setError(null)
+    setSearched(true)
+    
+    try {
+      const response = await fetch(
+        `/api/search?city=${encodeURIComponent(city)}&category=${encodeURIComponent(category)}`
+      )
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || `Search failed with status code ${response.status}`)
+      }
+      
+      const data = await response.json()
+      setLeads(data.results || [])
+    } catch (err) {
+      console.error(err)
+      setError(
+        err.message || 'Failed to retrieve listings from backend. Ensure server/run.py is running.'
+      )
+      setLeads([])
+    } finally {
       setIsLoading(false)
-      setSearched(true)
-    }, 1200)
+    }
   }
 
-  // Mock leads data matching the search
-  const mockLeads = [
-    {
-      id: 1,
-      name: "Tony's Woodfired Pizza",
-      category: "Restaurant / Pizzeria",
-      location: searchLocation,
-      phone: "(512) 555-0192",
-      address: "1024 Congress Ave",
-      opportunity: "High - Google Maps listing has 120+ positive reviews but no website linked.",
-      potentialRevenue: "$1,500 - $3,000"
-    },
-    {
-      id: 2,
-      name: "Stellar Auto Services",
-      category: "Automotive Repair",
-      location: searchLocation,
-      phone: "(512) 555-3841",
-      address: "804 W 5th St",
-      opportunity: "Medium - Has a standard facebook page but no dedicated web portfolio/booking system.",
-      potentialRevenue: "$2,000 - $4,000"
-    },
-    {
-      id: 3,
-      name: "Green Valley Landscaping",
-      category: "Home Services / Landscaping",
-      location: searchLocation,
-      phone: "(512) 555-7733",
-      address: "Serving local area",
-      opportunity: "High - Active local advertisement with no digital footprint besides a phone directory listing.",
-      potentialRevenue: "$1,200 - $2,500"
-    }
-  ]
+  // Count leads without website to show quick stats
+  const leadsWithoutWebsiteCount = leads.filter(l => l.status === 'No Website').length
 
   return (
     <div className="min-h-screen bg-[#0b0f19] text-slate-100 relative font-sans">
@@ -110,29 +117,29 @@ function App() {
                 LeadLocal
               </span>
               <span className="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-950 text-indigo-300 border border-indigo-900/50">
-                v1.0
+                Step 2
               </span>
             </div>
           </div>
 
           <div className="flex items-center space-x-4">
             {/* Backend Connection Status Badge */}
-            <div id="backend-status-container" className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2">
               <span className="text-xs text-slate-400 hidden sm:inline">Backend API:</span>
               {backendStatus === 'checking' && (
-                <div className="flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 animate-pulse">
+                <div id="backend-status-container" className="flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700 animate-pulse">
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-400 mr-2"></span>
                   Checking...
                 </div>
               )}
               {backendStatus === 'connected' && (
-                <div className="flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-950/80 text-emerald-300 border border-emerald-800/50">
+                <div id="backend-status-container" className="flex items-center px-3 py-1 rounded-full text-xs font-medium bg-emerald-950/80 text-emerald-300 border border-emerald-800/50">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2 animate-ping"></span>
                   Connected
                 </div>
               )}
               {backendStatus === 'offline' && (
-                <div className="flex items-center px-3 py-1 rounded-full text-xs font-medium bg-rose-950/80 text-rose-300 border border-rose-800/50" title="Run server/run.py to connect">
+                <div id="backend-status-container" className="flex items-center px-3 py-1 rounded-full text-xs font-medium bg-rose-950/80 text-rose-300 border border-rose-800/50" title="Run server/run.py to connect">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-400 mr-2"></span>
                   Offline
                 </div>
@@ -140,7 +147,7 @@ function App() {
             </div>
 
             <a 
-              href="https://github.com" 
+              href="https://github.com/i-jashanpreet/leadlocal" 
               target="_blank" 
               rel="noreferrer"
               className="text-slate-400 hover:text-white transition-colors"
@@ -155,131 +162,275 @@ function App() {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 flex flex-col items-center justify-center min-h-[calc(100vh-10rem)]">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 flex flex-col items-center">
         
         {/* Banner Announcement */}
         <div className="inline-flex items-center space-x-2 px-3 py-1.5 mb-8 rounded-full bg-slate-900 border border-slate-800 text-xs font-semibold tracking-wide text-indigo-400 hover:border-slate-700 transition-colors">
           <Sparkles className="w-3.5 h-3.5" />
-          <span>Step 1 Project Foundation Initialized</span>
+          <span>Step 2 Live Google Places API Connected</span>
         </div>
 
         {/* Hero Section */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight mb-6">
-            Find Local Businesses With{" "}
-            <span className="bg-gradient-to-r from-violet-400 via-indigo-400 to-cyan-400 bg-clip-text text-transparent">
-              No Website
-            </span>
+        <div className="text-center max-w-3xl mx-auto mb-10">
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight mb-4">
+            Identify Local Service Gaps
           </h1>
-          <p className="text-lg sm:text-xl text-slate-400 leading-relaxed max-w-2xl mx-auto">
-            LeadLocal helps freelancers scan local areas, identify high-value businesses lacking a web presence, and generate outreach plans to secure web development clients.
+          <p className="text-base sm:text-lg text-slate-400 max-w-2xl mx-auto">
+            Search any city and service category to pinpoint businesses with missing web presences. Uncover warm lead options to sell your freelance web design services.
           </p>
         </div>
 
-        {/* Search SaaS Box */}
-        <div className="w-full max-w-2xl bg-slate-900/50 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+        {/* Search Panel Box */}
+        <div className="w-full max-w-3xl bg-slate-900/50 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-6 shadow-2xl relative overflow-hidden mb-12">
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-indigo-500 to-transparent"></div>
           
           <form id="search-form" onSubmit={handleSearch} className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-grow">
-                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+              {/* City Input */}
+              <div className="relative md:col-span-6">
+                <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <input
-                  id="search-input"
+                  id="search-city"
                   type="text"
                   placeholder="Enter City, State (e.g. Austin, TX)"
-                  value={searchLocation}
-                  onChange={(e) => setSearchLocation(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium text-sm"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="w-full pl-11 pr-4 py-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium text-sm"
                   required
                 />
               </div>
+              
+              {/* Category Dropdown */}
+              <div className="relative md:col-span-4">
+                <Building className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+                <select
+                  id="search-category"
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value)}
+                  className="w-full pl-11 pr-10 py-3.5 bg-slate-950/80 border border-slate-800 rounded-xl text-slate-100 appearance-none focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all font-medium text-sm cursor-pointer"
+                >
+                  {categories.map((cat) => (
+                    <option key={cat.value} value={cat.value} className="bg-slate-950 text-slate-100">
+                      {cat.label}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-500">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Submit Button */}
               <button
                 id="search-button"
                 type="submit"
                 disabled={isLoading}
-                className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold rounded-xl text-sm transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/20 active:scale-[0.98] disabled:opacity-75 disabled:cursor-not-allowed"
+                className="w-full md:col-span-2 px-5 py-3.5 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white font-semibold rounded-xl text-sm transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/20 active:scale-[0.98] disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
               >
                 {isLoading ? (
-                  <>
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    <span>Scanning Area...</span>
-                  </>
+                  <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
                 ) : (
                   <>
                     <Search className="w-4 h-4" />
-                    <span>Search Leads</span>
+                    <span>Search</span>
                   </>
                 )}
               </button>
             </div>
             
-            <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-              <span>Press Search to run a simulated scan of the area</span>
-              <span>Filter: No Website</span>
-            </div>
+            {backendStatus === 'offline' && (
+              <div className="flex items-start space-x-2 text-xs text-amber-500 bg-amber-950/20 border border-amber-900/50 rounded-xl p-3">
+                <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Backend is currently offline.</strong> Running a search will result in a connection error. Please run <code>python run.py</code> inside the <code>server/</code> folder to start it.
+                </span>
+              </div>
+            )}
           </form>
         </div>
 
-        {/* Results / Landing Content */}
-        <div className="w-full max-w-4xl mt-16">
-          {searched ? (
+        {/* Results Container */}
+        <div className="w-full max-w-5xl">
+          
+          {/* 1. Loading State (Skeleton Cards) */}
+          {isLoading && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                <h3 className="text-lg font-semibold flex items-center space-x-2">
-                  <Building className="w-5 h-5 text-indigo-400" />
-                  <span>Found Leads in {searchLocation} (Simulated)</span>
-                </h3>
-                <span className="text-xs px-2.5 py-1 rounded-full bg-slate-900 border border-slate-800 text-indigo-400 font-medium">
-                  {mockLeads.length} Opportunities
-                </span>
-              </div>
-              
+              <div className="h-6 w-48 bg-slate-800 rounded animate-pulse"></div>
               <div className="grid gap-6 md:grid-cols-3">
-                {mockLeads.map((lead) => (
-                  <div key={lead.id} className="bg-slate-900/40 border border-slate-800/80 rounded-xl p-5 hover:border-slate-700/80 transition-all duration-300 flex flex-col justify-between group">
-                    <div>
-                      <div className="flex justify-between items-start mb-3">
-                        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                          No Website
-                        </span>
-                        <span className="text-xs text-slate-500 font-mono">{lead.potentialRevenue}</span>
-                      </div>
-                      
-                      <h4 className="font-bold text-slate-100 group-hover:text-indigo-400 transition-colors text-base mb-1">
-                        {lead.name}
-                      </h4>
-                      <p className="text-xs text-indigo-400 mb-3">{lead.category}</p>
-                      
-                      <div className="space-y-1.5 text-xs text-slate-400 mb-4">
-                        <div className="flex items-center space-x-2">
-                          <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                          <span>{lead.address}</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Phone className="w-3.5 h-3.5 text-slate-500" />
-                          <span>{lead.phone}</span>
-                        </div>
-                      </div>
-
-                      <div className="bg-slate-950/80 border border-slate-800/80 rounded-lg p-3 text-xs text-slate-400">
-                        <span className="block font-medium text-slate-300 mb-1">Opportunity Details:</span>
-                        {lead.opportunity}
-                      </div>
+                {[1, 2, 3].map((n) => (
+                  <div key={n} className="bg-slate-900/25 border border-slate-800/80 rounded-xl p-5 space-y-4 animate-pulse">
+                    <div className="flex justify-between items-center">
+                      <div className="h-5 w-24 bg-slate-800 rounded"></div>
+                      <div className="h-4 w-12 bg-slate-800 rounded"></div>
                     </div>
-
-                    <button className="mt-5 w-full py-2 bg-slate-800 hover:bg-slate-700 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center space-x-1">
-                      <span>Unlock Lead</span>
-                      <ArrowRight className="w-3 h-3" />
-                    </button>
+                    <div className="h-6 w-3/4 bg-slate-800 rounded"></div>
+                    <div className="h-4 w-1/2 bg-slate-800 rounded"></div>
+                    <div className="space-y-2 pt-2">
+                      <div className="h-3 w-full bg-slate-800 rounded"></div>
+                      <div className="h-3 w-5/6 bg-slate-800 rounded"></div>
+                    </div>
+                    <div className="h-9 w-full bg-slate-800 rounded pt-3"></div>
                   </div>
                 ))}
               </div>
             </div>
-          ) : (
+          )}
+
+          {/* 2. Error State */}
+          {!isLoading && error && (
+            <div className="bg-rose-950/40 border border-rose-800/60 rounded-2xl p-6 text-center max-w-xl mx-auto">
+              <ShieldAlert className="w-12 h-12 text-rose-500 mx-auto mb-4" />
+              <h3 className="text-lg font-bold text-slate-100 mb-2">Search Call Failed</h3>
+              <p className="text-sm text-slate-400 mb-4">{error}</p>
+              <button 
+                onClick={handleSearch}
+                className="px-4 py-2 bg-rose-800/35 hover:bg-rose-800/50 border border-rose-700/50 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+              >
+                Retry Request
+              </button>
+            </div>
+          )}
+
+          {/* 3. Success State with Results */}
+          {!isLoading && !error && searched && (
+            <div className="space-y-6">
+              
+              {/* Scan Metrics / Quick Stats */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-800 pb-4 gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold flex items-center space-x-2">
+                    <Building className="w-5 h-5 text-indigo-400" />
+                    <span>Search Results: {category} in {city}</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Google Places API returned {leads.length} results.
+                  </p>
+                </div>
+                
+                <div className="flex gap-2">
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-indigo-950 border border-indigo-900/50 text-indigo-300 font-medium">
+                    {leads.length} Scan Matches
+                  </span>
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 font-medium">
+                    {leadsWithoutWebsiteCount} High Value Leads
+                  </span>
+                </div>
+              </div>
+              
+              {/* Results Grid */}
+              {leads.length > 0 ? (
+                <div className="grid gap-6 md:grid-cols-3">
+                  {leads.map((lead, idx) => {
+                    const noWebsite = lead.status === 'No Website'
+                    return (
+                      <div 
+                        key={idx} 
+                        className={`bg-slate-900/40 border rounded-xl p-5 hover:border-slate-700/80 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden ${
+                          noWebsite 
+                            ? 'border-amber-500/30 hover:border-amber-500/60 shadow-lg shadow-amber-500/5' 
+                            : 'border-slate-800/80'
+                        }`}
+                      >
+                        {/* Glow for no website leads */}
+                        {noWebsite && (
+                          <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/5 rounded-full blur-xl pointer-events-none translate-x-8 -translate-y-8"></div>
+                        )}
+                        
+                        <div>
+                          {/* Badges / Rating Header */}
+                          <div className="flex justify-between items-start mb-3 gap-2">
+                            {noWebsite ? (
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                Potential Lead
+                              </span>
+                            ) : (
+                              <span className="text-xs font-semibold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                Has Website
+                              </span>
+                            )}
+                            
+                            {/* Stars rating */}
+                            {lead.rating > 0 && (
+                              <div className="flex items-center space-x-1 text-amber-400">
+                                <Star className="w-3.5 h-3.5 fill-current" />
+                                <span className="text-xs font-bold font-mono">{lead.rating}</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Business Name */}
+                          <h4 className={`font-bold text-base mb-1 transition-colors ${
+                            noWebsite ? 'text-slate-100 group-hover:text-amber-400' : 'text-slate-300'
+                          }`}>
+                            {lead.name}
+                          </h4>
+                          
+                          {/* Business Location & Contact */}
+                          <div className="space-y-2 text-xs text-slate-400 mt-4 mb-4">
+                            <div className="flex items-start space-x-2">
+                              <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0 mt-0.5" />
+                              <span className="line-clamp-2">{lead.address}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <Phone className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                              <span>{lead.phone || 'No phone listing'}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Button Link Layout */}
+                        <div className="mt-4 pt-4 border-t border-slate-800/80 flex flex-col gap-2">
+                          {noWebsite ? (
+                            <div className="space-y-2">
+                              <div className="bg-slate-950/80 border border-amber-500/10 rounded-lg p-2.5 text-[11px] text-amber-300/85">
+                                Opportunity: High. Business is well rated, but lacks web services. Pitch standard package.
+                              </div>
+                              <a 
+                                href={lead.maps_link}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="w-full py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold rounded-lg transition-colors flex items-center justify-center space-x-1 cursor-pointer"
+                              >
+                                <span>Outreach Map Profile</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </div>
+                          ) : (
+                            <a 
+                              href={lead.website}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-lg transition-colors flex items-center justify-center space-x-1 cursor-pointer"
+                            >
+                              <span>Visit Website</span>
+                              <ExternalLink className="w-3 h-3 text-slate-500" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                /* Empty Results State */
+                <div className="bg-slate-900/20 border border-slate-800 rounded-2xl p-12 text-center max-w-xl mx-auto">
+                  <Building className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-bold text-slate-200 mb-2">No Matching Businesses</h3>
+                  <p className="text-sm text-slate-400">
+                    We scanned the location but couldn't find any {category.toLowerCase()} listings in {city}. Try modifying your queries.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 4. Starter Screen / Initial landing state */}
+          {!isLoading && !error && !searched && (
             <div className="grid gap-8 md:grid-cols-3">
               <div className="bg-slate-900/30 border border-slate-800/50 rounded-2xl p-6 hover:border-slate-800 transition-all">
                 <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center mb-4">
@@ -317,13 +468,13 @@ function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800/60 bg-[#080b12] py-8 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-800/60 bg-[#080b12] py-8 text-center text-xs text-slate-500 mt-20">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© 2026 LeadLocal. All rights reserved.</p>
           <div className="flex space-x-4">
             <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-400 font-mono">React v19</span>
             <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-400 font-mono">FastAPI</span>
-            <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-400 font-mono">Tailwind CSS v4</span>
+            <span className="px-2 py-1 rounded bg-slate-900 border border-slate-800 text-slate-400 font-mono">Google Places API v1</span>
           </div>
         </div>
       </footer>

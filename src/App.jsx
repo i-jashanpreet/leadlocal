@@ -23,20 +23,10 @@ import {
 
 const getPresenceBadges = (lead) => {
   const badges = []
-  if (lead.status === 'No Website') {
+  if (!lead.website || lead.status === 'No Website') {
     badges.push({ text: 'No Website', color: 'bg-[#ff3b30]/10 text-[#ff3b30] border-transparent shadow-none' })
-    badges.push({ text: 'Weak Presence', color: 'bg-[#ff3b30]/10 text-[#ff3b30] border-transparent shadow-none' })
-  } else if (lead.status === 'Broken') {
-    badges.push({ text: 'Broken Website', color: 'bg-[#ff3b30]/10 text-[#ff3b30] border-transparent shadow-none' })
-    badges.push({ text: 'Weak Presence', color: 'bg-[#ff3b30]/10 text-[#ff3b30] border-transparent shadow-none' })
-  } else if (lead.status === 'Outdated' || lead.status === 'Outdated/Parked') {
-    badges.push({ text: 'Outdated Site', color: 'bg-[#ff9500]/10 text-[#ff9500] border-transparent' })
-    badges.push({ text: 'Muted Online Presence', color: 'bg-[#f5f5f7] text-[#86868b] border-[#e8e8ed]' })
-  } else if (lead.status === 'Active') {
-    badges.push({ text: 'Verified Lead', color: 'bg-[#34c759]/10 text-[#30d158] border-transparent' })
   } else {
-    // fallback
-    badges.push({ text: 'Verified Lead', color: 'bg-[#0071e3]/10 text-[#0071e3] border-transparent' })
+    badges.push({ text: 'Lead Found', color: 'bg-[#f5f5f7] text-[#86868b] border-[#e8e8ed]' })
   }
   return badges
 }
@@ -472,7 +462,11 @@ function App() {
             )}
           </div>
           <p className="text-[10px] text-[#86868b] leading-normal font-normal">
-            Lead score and local opportunity audit engine is online.
+            {backendStatus === 'connected' 
+              ? "Lead score and local opportunity audit engine is online."
+              : backendStatus === 'checking'
+              ? "Checking connection to audit engine..."
+              : "Connection to local opportunity audit engine failed."}
           </p>
         </div>
       </aside>
@@ -658,13 +652,13 @@ function App() {
 
                 {/* 2. Error Display */}
                 {!isLoading && searchError && (
-                  <div className="bg-red-50 border border-red-200 rounded-2xl p-8 text-center max-w-xl mx-auto text-slate-700">
-                    <AlertTriangle className="w-10 h-10 text-rose-500 mx-auto mb-4" />
-                    <h3 className="text-lg font-bold text-slate-100 mb-2">Search Pipeline Failed</h3>
-                    <p className="text-sm text-slate-450 mb-4">{searchError}</p>
+                  <div className="bg-[#ff3b30]/5 border border-[#ff3b30]/15 rounded-2xl p-8 text-center max-w-xl mx-auto text-[#ff3b30]">
+                    <AlertTriangle className="w-10 h-10 text-[#ff3b30] mx-auto mb-4" />
+                    <h3 className="text-base font-semibold mb-2">Search Pipeline Failed</h3>
+                    <p className="text-xs text-[#86868b] mb-4">{searchError}</p>
                     <button 
                       onClick={() => executeSearch(false)}
-                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+                      className="px-4 py-2 bg-[#ff3b30] hover:bg-[#ff3b30]/90 text-white text-xs font-medium rounded-full transition-colors cursor-pointer"
                     >
                       Retry Search
                     </button>
@@ -689,9 +683,8 @@ function App() {
                       <>
                         <div className="grid gap-6 md:grid-cols-3">
                           {searchResults.map((lead, idx) => {
-                            const noWebsite = lead.status === 'No Website' || lead.status === 'Broken'
-                            const outdated = lead.status === 'Outdated' || lead.status === 'Outdated/Parked'
-                            const leadFound = lead.status === 'Active' || (!noWebsite && !outdated)
+                            const noWebsite = !lead.website || lead.status === 'No Website'
+                            const leadFound = !noWebsite
                             const alreadySaved = isLeadAlreadySaved(lead)
                             
                             // progress bar color helper
@@ -727,17 +720,11 @@ function App() {
                                         {alreadySaved ? <Check className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
                                       </button>
                                       
-                                      {noWebsite && (
+                                      {noWebsite ? (
                                         <span className="text-[9px] font-medium px-2 py-0.5 rounded-full bg-[#ff3b30]/10 text-[#ff3b30] uppercase tracking-wider">
                                           No Website
                                         </span>
-                                      )}
-                                      {outdated && (
-                                        <span className="text-[9px] font-medium px-2 py-0.5 rounded-full bg-[#ff9500]/10 text-[#ff9500] uppercase tracking-wider">
-                                          Outdated Tech
-                                        </span>
-                                      )}
-                                      {leadFound && (
+                                      ) : (
                                         <span className="text-[9px] font-medium px-2 py-0.5 rounded-full bg-[#f5f5f7] text-[#86868b] border border-[#e8e8ed] uppercase tracking-wider">
                                           Lead Found
                                         </span>
@@ -767,51 +754,37 @@ function App() {
                                   </div>
                                 </div>
 
-                                {/* Bottom Metric / Actions Row */}
+                                {/* Bottom Action Area */}
                                 <div className="mt-3 pt-3 border-t border-[#e8e8ed]">
-                                  {noWebsite && (
-                                    <div>
-                                      <div className="flex justify-between text-xs text-[#86868b] mb-1 font-medium">
-                                        <span>SEO Score</span>
-                                        <span className="font-semibold text-[#1d1d1f]">{lead.lead_score || 12}/100</span>
-                                      </div>
-                                      <div className="w-full bg-[#e8e8ed] h-1.5 rounded-full overflow-hidden">
-                                        <div 
-                                          className={`${barColorClass} h-full rounded-full transition-all duration-500`} 
-                                          style={{ width: `${lead.lead_score || 12}%` }}
-                                        ></div>
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {outdated && (
-                                    <div>
-                                      <div className="flex justify-between text-xs text-[#86868b] mb-1 font-medium">
-                                        <span>Mobile Friendliness</span>
-                                        <span className="font-semibold text-[#ff9500]">
-                                          {lead.lead_score < 40 ? 'Poor' : lead.lead_score < 75 ? 'Fair' : 'Good'}
-                                        </span>
-                                      </div>
-                                      <div className="w-full bg-[#e8e8ed] h-1.5 rounded-full overflow-hidden">
-                                        <div 
-                                          className={`${barColorClass} h-full rounded-full transition-all duration-500`} 
-                                          style={{ width: `${lead.lead_score || 35}%` }}
-                                        ></div>
-                                      </div>
-                                    </div>
-                                  )}
-
-                                  {leadFound && (
+                                  {lead.website ? (
                                     <div className="flex items-center justify-between gap-3">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          openAuditModal(lead);
-                                        }}
-                                        className="flex-grow py-2 bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full text-xs font-medium transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm shadow-[#0071e3]/10"
+                                      <a
+                                        href={lead.website}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="flex-grow py-2 bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full text-xs font-medium text-center transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm shadow-[#0071e3]/10"
                                       >
-                                        <span>View Decision Maker</span>
-                                      </button>
+                                        <Globe className="w-3.5 h-3.5" />
+                                        <span>Visit Website</span>
+                                      </a>
+                                      
+                                      <a
+                                        href={lead.maps_link}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="p-2 bg-[#f5f5f7] hover:bg-[#e8e8ed] text-[#86868b] hover:text-[#1d1d1f] rounded-full transition-all border-0"
+                                        title="Google Maps"
+                                      >
+                                        <ExternalLink className="w-3.5 h-3.5" />
+                                      </a>
+                                    </div>
+                                  ) : (
+                                    <div className="flex items-center justify-between gap-3">
+                                      <div className="flex-grow py-2 bg-slate-100 text-slate-400 rounded-full text-xs font-semibold text-center border border-slate-200 select-none">
+                                        No Website
+                                      </div>
                                       
                                       <a
                                         href={lead.maps_link}
@@ -1091,9 +1064,8 @@ function App() {
                       {layoutView === 'grid' && (
                         <div className="grid gap-6 md:grid-cols-3 animate-fadeIn">
                           {savedLeads.map((lead) => {
-                            const noWebsite = lead.status === 'No Website' || lead.status === 'Broken'
-                            const outdated = lead.status === 'Outdated' || lead.status === 'Outdated/Parked'
-                            const leadFound = lead.status === 'Active' || (!noWebsite && !outdated)
+                            const noWebsite = !lead.website || lead.status === 'No Website'
+                            const leadFound = !noWebsite
                             
                             // progress bar color helper
                             const score = lead.lead_score || 0
@@ -1124,17 +1096,11 @@ function App() {
                                         <Trash2 className="w-3.5 h-3.5" />
                                       </button>
                                       
-                                      {noWebsite && (
+                                      {noWebsite ? (
                                         <span className="text-[9px] font-medium px-2 py-0.5 rounded-full bg-[#ff3b30]/10 text-[#ff3b30] uppercase tracking-wider">
                                           No Website
                                         </span>
-                                      )}
-                                      {outdated && (
-                                        <span className="text-[9px] font-medium px-2 py-0.5 rounded-full bg-[#ff9500]/10 text-[#ff9500] uppercase tracking-wider">
-                                          Outdated Tech
-                                        </span>
-                                      )}
-                                      {leadFound && (
+                                      ) : (
                                         <span className="text-[9px] font-medium px-2 py-0.5 rounded-full bg-[#f5f5f7] text-[#86868b] border border-[#e8e8ed] uppercase tracking-wider">
                                           Lead Found
                                         </span>
@@ -1164,65 +1130,51 @@ function App() {
                                   </div>
                                 </div>
  
-                                {/* Bottom Metric / Actions Row */}
-                                <div className="mt-3 pt-3 border-t border-[#e8e8ed]">
-                                  {noWebsite && (
-                                    <div>
-                                      <div className="flex justify-between text-xs text-[#86868b] mb-1 font-medium">
-                                        <span>SEO Score</span>
-                                        <span className="font-semibold text-[#1d1d1f]">{lead.lead_score || 12}/100</span>
-                                      </div>
-                                      <div className="w-full bg-[#e8e8ed] h-1.5 rounded-full overflow-hidden">
-                                        <div 
-                                          className={`${barColorClass} h-full rounded-full transition-all duration-500`} 
-                                          style={{ width: `${lead.lead_score || 12}%` }}
-                                        ></div>
-                                      </div>
-                                    </div>
-                                  )}
- 
-                                  {outdated && (
-                                    <div>
-                                      <div className="flex justify-between text-xs text-[#86868b] mb-1 font-medium">
-                                        <span>Mobile Friendliness</span>
-                                        <span className="font-semibold text-[#ff9500]">
-                                          {lead.lead_score < 40 ? 'Poor' : lead.lead_score < 75 ? 'Fair' : 'Good'}
-                                        </span>
-                                      </div>
-                                      <div className="w-full bg-[#e8e8ed] h-1.5 rounded-full overflow-hidden">
-                                        <div 
-                                          className={`${barColorClass} h-full rounded-full transition-all duration-500`} 
-                                          style={{ width: `${lead.lead_score || 35}%` }}
-                                        ></div>
-                                      </div>
-                                    </div>
-                                  )}
- 
-                                  {leadFound && (
-                                    <div className="flex items-center justify-between gap-3">
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          openAuditModal(lead);
-                                        }}
-                                        className="flex-grow py-2 bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full text-xs font-medium transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm shadow-[#0071e3]/10"
-                                      >
-                                        <span>View Decision Maker</span>
-                                      </button>
-                                      
-                                      <a
-                                        href={lead.maps_link}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="p-2 bg-[#f5f5f7] hover:bg-[#e8e8ed] text-[#86868b] hover:text-[#1d1d1f] rounded-full transition-all border-0"
-                                        title="Google Maps"
-                                      >
-                                        <ExternalLink className="w-3.5 h-3.5" />
-                                      </a>
-                                    </div>
-                                  )}
-                                </div>
+                                 {/* Bottom Action Area */}
+                                 <div className="mt-3 pt-3 border-t border-[#e8e8ed]">
+                                   {lead.website ? (
+                                     <div className="flex items-center justify-between gap-3">
+                                       <a
+                                         href={lead.website}
+                                         target="_blank"
+                                         rel="noreferrer"
+                                         onClick={(e) => e.stopPropagation()}
+                                         className="flex-grow py-2 bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full text-xs font-medium text-center transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm shadow-[#0071e3]/10"
+                                       >
+                                         <Globe className="w-3.5 h-3.5" />
+                                         <span>Visit Website</span>
+                                       </a>
+                                       
+                                       <a
+                                         href={lead.maps_link}
+                                         target="_blank"
+                                         rel="noreferrer"
+                                         onClick={(e) => e.stopPropagation()}
+                                         className="p-2 bg-[#f5f5f7] hover:bg-[#e8e8ed] text-[#86868b] hover:text-[#1d1d1f] rounded-full transition-all border-0"
+                                         title="Google Maps"
+                                       >
+                                         <ExternalLink className="w-3.5 h-3.5" />
+                                       </a>
+                                     </div>
+                                   ) : (
+                                     <div className="flex items-center justify-between gap-3">
+                                       <div className="flex-grow py-2 bg-slate-100 text-slate-400 rounded-full text-xs font-semibold text-center border border-slate-200 select-none">
+                                         No Website
+                                       </div>
+                                       
+                                       <a
+                                         href={lead.maps_link}
+                                         target="_blank"
+                                         rel="noreferrer"
+                                         onClick={(e) => e.stopPropagation()}
+                                         className="p-2 bg-[#f5f5f7] hover:bg-[#e8e8ed] text-[#86868b] hover:text-[#1d1d1f] rounded-full transition-all border-0"
+                                         title="Google Maps"
+                                       >
+                                         <ExternalLink className="w-3.5 h-3.5" />
+                                       </a>
+                                     </div>
+                                   )}
+                                 </div>
                               </div>
                             )
                           })}
